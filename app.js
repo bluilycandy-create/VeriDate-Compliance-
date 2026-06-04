@@ -1,4 +1,4 @@
-// VeriDate Compliance Dashboard - Core Logic
+// VeriDate Compliance Dashboard - Core Logic (Warm Minimalist Theme)
 
 // Embedded raw CSV content of QC-005.csv as fallback for local file:// usage
 const DEFAULT_CSV_DATA = `批號,品項,製造日期,應標效期,實標效期
@@ -111,10 +111,34 @@ let currentFilter = 'all';
 let searchQuery = '';
 let currentPage = 1;
 const itemsPerPage = 15;
+let currentViewMode = 'table'; // 'table' or 'cards'
 
 // Charts instances
 let statusChart = null;
 let errorTypeChart = null;
+
+// Product Image Mapping
+const PRODUCT_IMAGES = {
+  '原味吐司': 'images/toast.png',
+  '鮮奶茶': 'images/milktea.png',
+  '氣泡飲': 'images/milktea.png',
+  '巧克力餅乾': 'images/cookies.png',
+  '蛋捲': 'images/cookies.png',
+  '杯裝優格': 'images/yogurt.png',
+  '布丁': 'images/yogurt.png',
+  '泡芙': 'images/yogurt.png'
+};
+
+// Fallback visual emojis for organic paper illustration
+const PRODUCT_PLACEHOLDER_ICONS = {
+  '湯包': '🍲',
+  '即食雞胸': '🍗',
+  '堅果包': '🌰',
+  '能量棒': '🍫',
+  '果醬': '🍯',
+  '沙拉醬': '🥗',
+  '冷凍水餃': '🥟'
+};
 
 // Months dictionary for English abbreviations
 const MONTHS_MAP = {
@@ -127,10 +151,80 @@ document.addEventListener('DOMContentLoaded', () => {
   initFilters();
   initSearch();
   initExport();
+  initViewToggle();
   
   // Try to load default data initially
   loadCSVString(DEFAULT_CSV_DATA);
 });
+
+// View Toggle (Table vs Cards)
+function initViewToggle() {
+  const toggleTableBtn = document.getElementById('viewToggleTable');
+  const toggleCardsBtn = document.getElementById('viewToggleCards');
+  
+  const tableWrapper = document.getElementById('dataTableWrapper');
+  const cardsWrapper = document.getElementById('dataCardsWrapper');
+
+  toggleTableBtn.addEventListener('click', () => {
+    currentViewMode = 'table';
+    toggleTableBtn.classList.add('active');
+    toggleCardsBtn.classList.remove('active');
+    tableWrapper.style.display = 'block';
+    cardsWrapper.style.display = 'none';
+    filterAndRenderData();
+  });
+
+  toggleCardsBtn.addEventListener('click', () => {
+    currentViewMode = 'cards';
+    toggleCardsBtn.classList.add('active');
+    toggleTableBtn.classList.remove('active');
+    tableWrapper.style.display = 'none';
+    cardsWrapper.style.display = 'block';
+    filterAndRenderData();
+  });
+}
+
+// Get Product Image/Illustration HTML
+function getProductImageHtml(item, isCard = false) {
+  const cleanItem = item?.trim() || '';
+  const imagePath = PRODUCT_IMAGES[cleanItem];
+
+  if (imagePath) {
+    if (isCard) {
+      return `<img src="${imagePath}" class="card-image" alt="${cleanItem}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+              <div class="card-placeholder" style="display:none; background:#ebe6dc;">🎨</div>`;
+    } else {
+      return `<img src="${imagePath}" class="table-product-thumb" alt="${cleanItem}" onerror="this.outerHTML='🏷️'">`;
+    }
+  } else {
+    // Generate beautiful earthy gradient for placeholder
+    const emoji = PRODUCT_PLACEHOLDER_ICONS[cleanItem] || '🏷️';
+    const gradients = [
+      'linear-gradient(135deg, #e4e9e4 0%, #cbd4cb 100%)', // Sage
+      'linear-gradient(135deg, #f2ece4 0%, #dfd3c3 100%)', // Wheat/Sand
+      'linear-gradient(135deg, #eae4e9 0%, #d8c3d4 100%)', // Lavender
+      'linear-gradient(135deg, #f4ebdb 0%, #decbae 100%)', // Straw
+      'linear-gradient(135deg, #f1e3e3 0%, #dbbfbf 100%)'  // Terracotta
+    ];
+    // Hash product name to pick a stable gradient
+    const charSum = Array.from(cleanItem).reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const gradient = gradients[charSum % gradients.length];
+
+    if (isCard) {
+      return `
+        <div class="card-placeholder" style="background: ${gradient};">
+          <div style="font-size: 3.5rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.05));">${emoji}</div>
+        </div>
+      `;
+    } else {
+      return `
+        <div class="table-product-thumb" style="background: ${gradient}; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; border-radius: 6px;">
+          ${emoji}
+        </div>
+      `;
+    }
+  }
+}
 
 // Drop Zone Setup
 function initDropZone() {
@@ -138,7 +232,6 @@ function initDropZone() {
   const fileInput = document.getElementById('fileInput');
   const loadDefaultBtn = document.getElementById('loadDefaultBtn');
 
-  // Trigger file dialog
   dropZone.addEventListener('click', (e) => {
     if (e.target !== loadDefaultBtn) {
       fileInput.click();
@@ -151,7 +244,6 @@ function initDropZone() {
     }
   });
 
-  // Drag over animations
   dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
     dropZone.classList.add('dragover');
@@ -169,14 +261,12 @@ function initDropZone() {
     }
   });
 
-  // Default loader
   loadDefaultBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     loadCSVString(DEFAULT_CSV_DATA);
   });
 }
 
-// File Reader
 function handleFile(file) {
   if (!file.name.endsWith('.csv')) {
     alert('僅支援上傳 CSV 格式的檔案！');
@@ -190,7 +280,7 @@ function handleFile(file) {
   reader.readAsText(file, 'UTF-8');
 }
 
-// CSV Parser & Analyzer
+// CSV Loader & Analyzer
 function loadCSVString(csvText) {
   const lines = csvText.split(/\r?\n/);
   if (lines.length < 2) return;
@@ -198,9 +288,7 @@ function loadCSVString(csvText) {
   rawDataList = [];
   processedDataList = [];
   
-  // Simple CSV parser
   const headers = parseCSVLine(lines[0]);
-  
   const seenRecords = new Set();
   
   for (let i = 1; i < lines.length; i++) {
@@ -228,20 +316,17 @@ function loadCSVString(csvText) {
       ...auditResult
     });
 
-    // Save signature for duplicate detection
     const sig = `${record.batch}|${record.item}|${record.mfgDateStr}|${record.expected}|${record.actual}`;
     seenRecords.add(sig);
   }
 
-  // UI Updates
   currentPage = 1;
   updateMetrics();
   renderCharts();
-  filterAndRenderTable();
+  filterAndRenderData();
 }
 
 function parseCSVLine(line) {
-  // Simple splits by comma, handles basic CSV cases
   const result = [];
   let current = '';
   let inQuotes = false;
@@ -264,19 +349,17 @@ function parseCSVLine(line) {
 // Auditing Engine
 function performAudit(record, seenRecords) {
   let isCompliant = true;
-  let statusClass = 'success'; // success, danger, warning
+  let statusClass = 'success';
   let statusText = '合規';
-  let category = 'compliant'; // compliant, mismatch, missing, duplicate
+  let category = 'compliant';
   let reason = '';
   
-  // 1. Check Missing values
   const missingFields = [];
   if (!record.batch) missingFields.push('批號');
   if (!record.item) missingFields.push('品項');
   if (!record.mfgDateStr) missingFields.push('製造日期');
   if (!record.actual) missingFields.push('實標效期');
   
-  // 2. Check Date validity
   let mfgDateFormatted = 'N/A';
   let isDateInvalid = false;
   
@@ -289,11 +372,9 @@ function performAudit(record, seenRecords) {
     }
   }
 
-  // 3. Check Duplicate record
   const sig = `${record.batch}|${record.item}|${record.mfgDateStr}|${record.expected}|${record.actual}`;
   const isDuplicate = seenRecords.has(sig);
 
-  // Evaluate
   if (missingFields.length > 0) {
     isCompliant = false;
     statusClass = 'warning';
@@ -303,7 +384,7 @@ function performAudit(record, seenRecords) {
   } else if (isDateInvalid) {
     isCompliant = false;
     statusClass = 'warning';
-    statusText = '日期格式錯誤';
+    statusText = '日期錯誤';
     category = 'missing';
     reason = `製造日期「${record.mfgDateStr}」格式無法解析`;
   } else if (isDuplicate) {
@@ -311,13 +392,13 @@ function performAudit(record, seenRecords) {
     statusClass = 'warning';
     statusText = '重複資料';
     category = 'duplicate';
-    reason = '整筆資料與先前記錄完全重複';
+    reason = '與先前記錄完全重複';
   } else if (record.expected !== record.actual) {
     isCompliant = false;
     statusClass = 'danger';
-    statusText = '效期錯誤';
+    statusText = '效期不符';
     category = 'mismatch';
-    reason = `應標為 ${record.expected}，但實標為 ${record.actual}`;
+    reason = `應標 ${record.expected}，實標 ${record.actual}`;
   }
 
   return {
@@ -330,17 +411,12 @@ function performAudit(record, seenRecords) {
   };
 }
 
-// Complex Date Parser
 function parseMfgDate(dateStr) {
   dateStr = dateStr.trim();
   
-  // 1. Matches YYYYMMDD e.g. 20260202
   const match1 = dateStr.match(/^(\d{4})(\d{2})(\d{2})$/);
-  if (match1) {
-    return `${match1[1]}-${match1[2]}-${match1[3]}`;
-  }
+  if (match1) return `${match1[1]}-${match1[2]}-${match1[3]}`;
   
-  // 2. Matches YYYY-MM-DD or YYYY/MM/DD e.g. 2026-03-03 or 2026/11/11
   const match2 = dateStr.match(/^(\d{4})[\-\/](\d{1,2})[\-\/](\d{1,2})$/);
   if (match2) {
     const m = match2[2].padStart(2, '0');
@@ -348,7 +424,6 @@ function parseMfgDate(dateStr) {
     return `${match2[1]}-${m}-${d}`;
   }
 
-  // 3. Matches D MMM YYYY e.g. 1 Feb 2026 or 10 May 2026
   const match3 = dateStr.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
   if (match3) {
     const monthAbbrev = match3[2].substring(0, 3).toLowerCase();
@@ -358,11 +433,10 @@ function parseMfgDate(dateStr) {
       return `${match3[3]}-${m}-${d}`;
     }
   }
-
   return null;
 }
 
-// Metrics Panel Update
+// Metrics Update
 function updateMetrics() {
   const total = processedDataList.length;
   const compliantCount = processedDataList.filter(d => d.isCompliant).length;
@@ -375,25 +449,24 @@ function updateMetrics() {
   document.getElementById('metricViolations').textContent = violationCount;
 }
 
-// Charts Renderer
+// Charts Renderer (Warm Minimalist Theme colors)
 function renderCharts() {
   const compliantCount = processedDataList.filter(d => d.isCompliant).length;
   const total = processedDataList.length;
   const violations = total - compliantCount;
 
-  // Chart 1: Compliance Ratio
+  // Chart 1: Compliance Ratio (Sage Green vs dusty Rose)
   if (statusChart) statusChart.destroy();
   const ctx1 = document.getElementById('statusChart').getContext('2d');
-  
   statusChart = new Chart(ctx1, {
     type: 'doughnut',
     data: {
-      labels: ['合規件數', '異常件數'],
+      labels: ['標示合規', '標示異常'],
       datasets: [{
         data: [compliantCount, violations],
-        backgroundColor: ['#10b981', '#f43f5e'],
+        backgroundColor: ['#6e8a76', '#c47a76'], // Sage vs Dusty Rose
         borderWidth: 2,
-        borderColor: '#0f172a',
+        borderColor: '#ffffff',
         hoverOffset: 4
       }]
     },
@@ -403,19 +476,15 @@ function renderCharts() {
       plugins: {
         legend: {
           position: 'bottom',
-          labels: { color: '#94a3b8', font: { family: 'Outfit, Noto Sans TC' } }
+          labels: { color: '#726c66', font: { family: 'Noto Sans TC, serif', size: 12 } }
         }
       },
-      cutout: '70%'
+      cutout: '72%'
     }
   });
 
   // Chart 2: Violation categories
-  const categories = {
-    mismatch: 0,
-    missing: 0,
-    duplicate: 0
-  };
+  const categories = { mismatch: 0, missing: 0, duplicate: 0 };
   processedDataList.forEach(item => {
     if (!item.isCompliant) {
       categories[item.category] = (categories[item.category] || 0) + 1;
@@ -431,10 +500,10 @@ function renderCharts() {
       datasets: [{
         label: '異常次數',
         data: [categories.mismatch, categories.missing, categories.duplicate],
-        backgroundColor: ['rgba(244, 63, 94, 0.85)', 'rgba(245, 158, 11, 0.85)', 'rgba(148, 163, 184, 0.7)'],
-        borderColor: ['#f43f5e', '#f59e0b', '#94a3b8'],
-        borderWidth: 1.5,
-        borderRadius: 6
+        backgroundColor: ['#c47a76', '#d9b48f', '#9b948c'], // Rose, Ochre, Sand Gray
+        borderColor: ['#b46a66', '#c9a47f', '#8b847c'],
+        borderWidth: 1,
+        borderRadius: 4
       }]
     },
     options: {
@@ -442,12 +511,12 @@ function renderCharts() {
       maintainAspectRatio: false,
       scales: {
         y: {
-          grid: { color: 'rgba(255, 255, 255, 0.05)' },
-          ticks: { color: '#94a3b8', precision: 0 }
+          grid: { color: 'rgba(140, 123, 108, 0.08)' },
+          ticks: { color: '#726c66', precision: 0, font: { family: 'Noto Sans TC' } }
         },
         x: {
           grid: { display: false },
-          ticks: { color: '#94a3b8' }
+          ticks: { color: '#726c66', font: { family: 'Noto Sans TC' } }
         }
       },
       plugins: {
@@ -457,7 +526,7 @@ function renderCharts() {
   });
 }
 
-// Table Filters Setup
+// Table/Card Filters
 function initFilters() {
   const tabs = document.querySelectorAll('.filter-tab');
   tabs.forEach(tab => {
@@ -466,26 +535,24 @@ function initFilters() {
       tab.classList.add('active');
       currentFilter = tab.dataset.filter;
       currentPage = 1;
-      filterAndRenderTable();
+      filterAndRenderData();
     });
   });
 }
 
-// Table Search Setup
 function initSearch() {
   const searchInput = document.getElementById('searchInput');
   searchInput.addEventListener('input', (e) => {
     searchQuery = e.target.value.toLowerCase().trim();
     currentPage = 1;
-    filterAndRenderTable();
+    filterAndRenderData();
   });
 }
 
-// Filtering & Table Render
-function filterAndRenderTable() {
+// Core Rendering Hub
+function filterAndRenderData() {
   let filtered = processedDataList;
 
-  // Filter tab selection
   if (currentFilter === 'compliant') {
     filtered = filtered.filter(d => d.isCompliant);
   } else if (currentFilter === 'violations') {
@@ -498,7 +565,6 @@ function filterAndRenderTable() {
     filtered = filtered.filter(d => d.category === 'duplicate');
   }
 
-  // Search input filtering
   if (searchQuery) {
     filtered = filtered.filter(d => 
       d.batch.toLowerCase().includes(searchQuery) ||
@@ -507,7 +573,6 @@ function filterAndRenderTable() {
     );
   }
 
-  // Pagination bounds
   const totalItems = filtered.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
   if (currentPage > totalPages) currentPage = totalPages;
@@ -516,11 +581,21 @@ function filterAndRenderTable() {
   const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
   const pagedItems = filtered.slice(startIndex, endIndex);
 
-  // Render Table
+  if (currentViewMode === 'table') {
+    renderListViewTable(pagedItems);
+  } else {
+    renderCardsViewGrid(pagedItems);
+  }
+
+  updatePaginationControls(startIndex + 1, endIndex, totalItems, totalPages);
+}
+
+// 1. Render Table List View
+function renderListViewTable(items) {
   const tableBody = document.getElementById('tableBody');
   tableBody.innerHTML = '';
 
-  if (pagedItems.length === 0) {
+  if (items.length === 0) {
     tableBody.innerHTML = `
       <tr>
         <td colspan="6">
@@ -532,19 +607,23 @@ function filterAndRenderTable() {
       </tr>
     `;
     lucide.createIcons();
-    updatePaginationControls(0, 0, 0, 1);
     return;
   }
 
-  pagedItems.forEach(item => {
+  items.forEach(item => {
     const tr = document.createElement('tr');
     if (item.category === 'duplicate') tr.classList.add('duplicate-row');
     
     tr.innerHTML = `
-      <td><span style="font-family: monospace; font-size: 0.85rem; color: #a5b4fc;">${item.batch || '<無批號>'}</span></td>
-      <td><strong>${item.item || '<無品項>'}</strong></td>
+      <td><span style="font-family: monospace; font-size: 0.85rem; color: var(--primary); font-weight: 500;">${item.batch || '<無批號>'}</span></td>
       <td>
-        <div style="font-size: 0.85rem;">${item.mfgDateFormatted}</div>
+        <div class="table-product-cell">
+          ${getProductImageHtml(item.item, false)}
+          <div><strong>${item.item || '<無品項>'}</strong></div>
+        </div>
+      </td>
+      <td>
+        <div style="font-size: 0.85rem; font-weight:500;">${item.mfgDateFormatted}</div>
         ${item.mfgDateStr && item.mfgDateStr !== item.mfgDateFormatted ? `<div style="font-size: 0.7rem; color: var(--text-muted);">原標: ${item.mfgDateStr}</div>` : ''}
       </td>
       <td><span class="badge badge-secondary">${item.expected || 'N/A'}</span></td>
@@ -563,14 +642,71 @@ function filterAndRenderTable() {
     tableBody.appendChild(tr);
   });
 
-  // Re-instantiate Lucide Icons inside the table
   lucide.createIcons();
-  
-  // Pagination
-  updatePaginationControls(startIndex + 1, endIndex, totalItems, totalPages);
 }
 
-// Pagination Controls Render
+// 2. Render Polaroid Cards Grid View
+function renderCardsViewGrid(items) {
+  const cardsWrapper = document.getElementById('dataCardsWrapper');
+  cardsWrapper.innerHTML = '';
+
+  if (items.length === 0) {
+    cardsWrapper.innerHTML = `
+      <div class="empty-state" style="grid-column: 1 / -1;">
+        <div class="empty-state-icon"><i data-lucide="inbox"></i></div>
+        <p>沒有符合當前搜尋或篩選條件的資料</p>
+      </div>
+    `;
+    lucide.createIcons();
+    return;
+  }
+
+  items.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    if (item.category === 'duplicate') card.classList.add('duplicate-row');
+
+    card.innerHTML = `
+      <div class="card-image-wrapper">
+        ${getProductImageHtml(item.item, true)}
+        <span class="card-badge badge ${item.isCompliant ? 'badge-success' : (item.statusClass === 'danger' ? 'badge-danger' : 'badge-warning')}">
+          ${item.statusText}
+        </span>
+      </div>
+      <div class="card-content">
+        <div class="card-item-name">${item.item || '<無品項>'}</div>
+        <div class="card-batch">${item.batch || '<無批號>'}</div>
+        
+        <div class="card-info-row">
+          <span class="card-info-label">製造日期</span>
+          <span style="font-weight:500;">${item.mfgDateFormatted}</span>
+        </div>
+        <div class="card-info-row">
+          <span class="card-info-label">應標效期</span>
+          <span class="badge badge-secondary" style="padding: 0.1rem 0.4rem; font-size: 0.7rem;">${item.expected || 'N/A'}</span>
+        </div>
+        <div class="card-info-row">
+          <span class="card-info-label">實標效期</span>
+          <span class="badge ${item.isCompliant ? 'badge-success' : (item.statusClass === 'danger' ? 'badge-danger' : 'badge-warning')}" style="padding: 0.1rem 0.4rem; font-size: 0.7rem;">
+            ${item.actual || 'N/A'}
+          </span>
+        </div>
+        
+        ${item.reason ? `
+          <div class="card-reason">
+            <i data-lucide="alert-circle" style="width: 13px; height: 13px;"></i>
+            <span>${item.reason}</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+    cardsWrapper.appendChild(card);
+  });
+
+  lucide.createIcons();
+}
+
+// Pagination Logic
 function updatePaginationControls(start, end, total, totalPages) {
   const infoSpan = document.getElementById('paginationInfo');
   const prevBtn = document.getElementById('prevPageBtn');
@@ -585,7 +721,6 @@ function updatePaginationControls(start, end, total, totalPages) {
   prevBtn.disabled = currentPage === 1;
   nextBtn.disabled = currentPage === totalPages;
 
-  // Clone to remove previous event listeners
   const newPrevBtn = prevBtn.cloneNode(true);
   const newNextBtn = nextBtn.cloneNode(true);
   
@@ -595,14 +730,14 @@ function updatePaginationControls(start, end, total, totalPages) {
   newPrevBtn.addEventListener('click', () => {
     if (currentPage > 1) {
       currentPage--;
-      filterAndRenderTable();
+      filterAndRenderData();
     }
   });
 
   newNextBtn.addEventListener('click', () => {
     if (currentPage < totalPages) {
       currentPage++;
-      filterAndRenderTable();
+      filterAndRenderData();
     }
   });
 }
@@ -616,7 +751,6 @@ function initExport() {
       return;
     }
     
-    // Construct CSV
     let csvContent = '批號,品項,製造日期,製造日期_標準格式,應標效期,實標效期,檢查結果,異常說明\r\n';
     
     processedDataList.forEach(item => {
