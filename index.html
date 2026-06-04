@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VeriDate Compliance - 效期標示合規稽核系統面板</title>
+  <meta name="description" content="VeriDate Compliance 是一款企業級的食品效期標示合規分析工具。此系統可協助您快速驗證製造日期、計算應標效期、比對實際標示效期，並針對缺失、錯誤、重複數據提供自動化稽核報告。">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Dynamic Glowing Orbs in Background -->
+  <div class="orb orb-1" id="glowingOrbPrimary"></div>
+  <div class="orb orb-2" id="glowingOrbSecondary"></div>
+
+  <div class="app-container">
+    
+    <!-- Header Section -->
+    <header>
+      <div class="logo-section">
+        <div class="logo-icon" id="logoIconContainer">
+          <i data-lucide="shield-check"></i>
+        </div>
+        <div>
+          <h1 id="appMainTitle">VeriDate Compliance</h1>
+          <p style="font-size: 0.8rem; color: var(--text-secondary);">食品標示效期合規校驗系統</p>
+        </div>
+        <span id="appStatusBadge">v1.0.0</span>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" id="loadDefaultBtn">
+          <i data-lucide="refresh-cw"></i> 載入預設 CSV 資料
+        </button>
+        <button class="btn btn-success" id="exportBtn">
+          <i data-lucide="download"></i> 匯出稽核報告
+        </button>
+      </div>
+    </header>
+
+    <!-- Upload/Drop Zone Panel -->
+    <section class="upload-section">
+      <div class="glass-panel drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".csv" style="display: none;">
+        <div class="upload-icon" id="uploadIconElement">
+          <i data-lucide="upload-cloud"></i>
+        </div>
+        <h3 id="uploadTitleText">拖曳您需要稽核的 CSV 檔案至此處</h3>
+        <p id="uploadSubtitleText">或者點擊此區域從電腦中選取檔案（支援多種製造日期格式的批次校驗）</p>
+        <div>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">支援欄位：批號、品項、製造日期、應標效期、實標效期</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Metrics Cards Grid -->
+    <section class="metrics-grid" id="metricsGridSection">
+      
+      <div class="glass-panel metric-card total" id="metricCardTotal">
+        <div class="metric-info">
+          <h4>總檢查筆數</h4>
+          <div class="metric-value" id="metricTotal">0</div>
+        </div>
+        <div class="metric-icon">
+          <i data-lucide="list-ordered"></i>
+        </div>
+      </div>
+
+      <div class="glass-panel metric-card compliance-rate" id="metricCardRate">
+        <div class="metric-info">
+          <h4>標示合規率</h4>
+          <div class="metric-value" id="metricCompliance">0%</div>
+        </div>
+        <div class="metric-icon">
+          <i data-lucide="percent"></i>
+        </div>
+      </div>
+
+      <div class="glass-panel metric-card compliant" id="metricCardCompliant">
+        <div class="metric-info">
+          <h4>合規筆數</h4>
+          <div class="metric-value" id="metricCompliant">0</div>
+        </div>
+        <div class="metric-icon">
+          <i data-lucide="check-circle-2"></i>
+        </div>
+      </div>
+
+      <div class="glass-panel metric-card violations" id="metricCardViolations">
+        <div class="metric-info">
+          <h4>異常筆數</h4>
+          <div class="metric-value" id="metricViolations">0</div>
+        </div>
+        <div class="metric-icon">
+          <i data-lucide="alert-triangle"></i>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Charts Section -->
+    <section class="charts-section" id="chartsSectionContainer">
+      
+      <div class="glass-panel chart-container" id="complianceRatioChartPanel">
+        <div class="chart-header">
+          <h3>合規性分佈比例</h3>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="statusChart"></canvas>
+        </div>
+      </div>
+
+      <div class="glass-panel chart-container" id="errorTypesChartPanel">
+        <div class="chart-header">
+          <h3>異常原因類型分佈</h3>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="errorTypeChart"></canvas>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Data Records Panel -->
+    <section class="data-section" id="dataRecordsPanel">
+      <div class="glass-panel">
+        
+        <div class="table-header-controls">
+          <div class="search-filter-box">
+            <div class="search-wrapper">
+              <i data-lucide="search" class="search-icon"></i>
+              <input type="text" id="searchInput" class="search-input" placeholder="搜尋批號或品項...">
+            </div>
+          </div>
+          
+          <div class="filter-btn-group" id="filterTabButtonGroup">
+            <button class="filter-tab active" data-filter="all" id="filterTabAll">全部</button>
+            <button class="filter-tab" data-filter="compliant" id="filterTabCompliant">合規</button>
+            <button class="filter-tab" data-filter="violations" id="filterTabViolations">不合規</button>
+            <button class="filter-tab" data-filter="mismatch" id="filterTabMismatch">效期不符</button>
+            <button class="filter-tab" data-filter="missing" id="filterTabMissing">資料缺失</button>
+            <button class="filter-tab" data-filter="duplicate" id="filterTabDuplicate">重複上報</button>
+          </div>
+        </div>
+
+        <!-- Table View -->
+        <div class="table-wrapper" id="dataTableWrapper">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 15%;">批號</th>
+                <th style="width: 15%;">品項</th>
+                <th style="width: 20%;">製造日期</th>
+                <th style="width: 12%;">應標效期</th>
+                <th style="width: 12%;">實標效期</th>
+                <th style="width: 26%;">稽核狀態 & 原因說明</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination-container" id="tablePaginationContainer">
+          <div class="pagination-info" id="paginationInfo">顯示 0 - 0 / 共 0 筆</div>
+          <div class="pagination-controls">
+            <button class="btn btn-secondary" id="prevPageBtn" disabled>
+              <i data-lucide="chevron-left"></i> 上一頁
+            </button>
+            <button class="btn btn-secondary" id="nextPageBtn" disabled>
+              下一頁 <i data-lucide="chevron-right"></i>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Lucide Icons & Chart.js CDNs -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Dashboard Main Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
