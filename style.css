@@ -164,6 +164,10 @@ header {
   border-color: var(--primary);
 }
 
+#mobileUploadBtn {
+  display: none;
+}
+
 .upload-icon {
   font-size: 2.5rem;
   color: var(--primary);
@@ -683,18 +687,38 @@ tr:hover td {
     padding: 0.5rem 0.75rem;
   }
 
+  /* RWD Upload Section - Button only */
+  .drop-zone {
+    border: none !important;
+    padding: 0.5rem 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-align: center;
+  }
+  
+  #uploadIconElement, #uploadTitleText, #uploadSubtitleText, #uploadSpecText {
+    display: none;
+  }
+
+  #mobileUploadBtn {
+    display: inline-flex;
+    margin: 0 auto;
+    box-shadow: 0 4px 12px var(--primary-glow);
+  }
+
   .metrics-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-    margin-bottom: 2rem;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
   }
 
   .metric-card {
-    padding: 1.25rem;
+    padding: 1rem;
+    border-radius: 12px;
   }
 
   .metric-value {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
   }
 
   .view-control-row {
@@ -738,9 +762,77 @@ tr:hover td {
     flex: 0 0 auto;
   }
 
+  /* Horizontal list card layouts on mobile */
   .cards-grid {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 1.25rem;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .product-card {
+    flex-direction: row;
+    align-items: stretch;
+    height: 125px;
+    border-radius: 12px;
+  }
+
+  .card-image-wrapper {
+    width: 105px;
+    height: 100%;
+    flex-shrink: 0;
+    border-radius: 12px 0 0 12px;
+  }
+
+  .card-badge {
+    top: 8px;
+    right: auto;
+    left: 8px;
+    font-size: 0.65rem;
+    padding: 0.2rem 0.4rem;
+  }
+
+  .card-content {
+    padding: 0.75rem 1rem;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .card-item-name {
+    font-size: 0.95rem;
+    margin-bottom: 0.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-batch {
+    font-size: 0.7rem;
+    margin-bottom: 0;
+  }
+
+  .card-info-row {
+    padding: 0.15rem 0;
+    font-size: 0.75rem;
+    border-top: none;
+    justify-content: flex-start;
+    gap: 0.75rem;
+  }
+
+  .card-info-row:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
+
+  .card-info-label {
+    min-width: 55px;
+  }
+
+  .card-reason {
+    padding-top: 0.2rem;
+    margin-top: 0.15rem;
+    border-top: 1px solid var(--border-light);
+    font-size: 0.7rem;
   }
 }
 
