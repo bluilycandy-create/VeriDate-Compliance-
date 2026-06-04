@@ -35,8 +35,18 @@
       </div>
     </header>
 
-    <!-- Upload/Drop Zone Panel -->
-    <section class="upload-section">
+    <!-- Module Selector Tabs -->
+    <div class="view-toggle-container" style="margin-bottom: 1.5rem; width: fit-content;" id="inputModeSelector">
+      <button class="view-toggle-btn active" id="inputModeCsv">
+        <i data-lucide="file-spreadsheet" style="width: 14px; height: 14px;"></i> CSV 批次匯入
+      </button>
+      <button class="view-toggle-btn" id="inputModeOcr">
+        <i data-lucide="camera" style="width: 14px; height: 14px;"></i> 📷 標籤影像辨識 (OCR)
+      </button>
+    </div>
+
+    <!-- 1. CSV Upload Section -->
+    <section class="upload-section" id="csvUploadSection">
       <div class="paper-panel drop-zone" id="dropZone">
         <input type="file" id="fileInput" accept=".csv" style="display: none;">
         <div class="upload-icon" id="uploadIconElement">
@@ -51,6 +61,87 @@
           <span style="font-size: 0.75rem; color: var(--text-muted); font-family: 'Noto Serif TC', serif;">
             欄位格式規格：批號、品項、製造日期、應標效期、實標效期
           </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. OCR Camera / Image Section (Hidden by default) -->
+    <section class="upload-section" id="ocrUploadSection" style="display: none;">
+      <div class="paper-panel ocr-scanner-container">
+        <div class="ocr-left-panel">
+          <h3 class="serif-font" style="margin-bottom: 0.75rem; font-size: 1.15rem;">📷 拍照或上傳標籤影像</h3>
+          
+          <!-- Camera Feed Box -->
+          <div class="camera-box" id="cameraBox">
+            <video id="videoFeed" autoplay playsinline></video>
+            <canvas id="captureCanvas" style="display: none;"></canvas>
+            <div class="scan-laser-line" id="scanLaserLine" style="display: none;"></div>
+            <div class="camera-placeholder-text" id="cameraPlaceholder">
+              <i data-lucide="camera-off" style="width: 32px; height: 32px; margin-bottom: 0.5rem; color: var(--text-muted);"></i>
+              <p style="font-size: 0.85rem;">相機未啟動，請點擊下方按鈕或上傳照片</p>
+            </div>
+          </div>
+
+          <!-- Camera Controls -->
+          <div class="camera-controls-row">
+            <button class="btn btn-secondary" id="btnStartCamera">
+              <i data-lucide="video"></i> 啟動相機
+            </button>
+            <button class="btn btn-primary" id="btnCapturePhoto" disabled>
+              <i data-lucide="aperture"></i> 拍攝照片
+            </button>
+            <button class="btn btn-secondary" id="btnSelectOcrFile">
+              <i data-lucide="image"></i> 上傳照片
+            </button>
+            <input type="file" id="ocrFileInput" accept="image/*" style="display: none;">
+          </div>
+
+          <!-- OCR Progress Indicator -->
+          <div class="ocr-progress-container" id="ocrProgressBox" style="display: none;">
+            <div class="ocr-progress-header">
+              <span id="ocrProgressStatus" style="font-size: 0.8rem; font-weight: 500;">正在載入辨識引擎...</span>
+              <span id="ocrProgressPercent" style="font-size: 0.8rem; font-family: monospace;">0%</span>
+            </div>
+            <div class="ocr-progress-bar-bg">
+              <div class="ocr-progress-bar-fill" id="ocrProgressBarFill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- OCR Results / Form Editor -->
+        <div class="ocr-right-panel">
+          <h3 class="serif-font" style="margin-bottom: 0.75rem; font-size: 1.15rem;">📝 辨識結果審查與校對</h3>
+          <div class="ocr-form">
+            <div class="ocr-form-group">
+              <label for="ocrInputItem">產品品項</label>
+              <input type="text" id="ocrInputItem" placeholder="例：原味吐司">
+            </div>
+            <div class="ocr-form-group">
+              <label for="ocrInputBatch">產品批號</label>
+              <input type="text" id="ocrInputBatch" placeholder="例：BATCH1099">
+            </div>
+            <div class="ocr-form-group">
+              <label for="ocrInputMfgDate">製造日期</label>
+              <input type="text" id="ocrInputMfgDate" placeholder="例：2026-06-04">
+            </div>
+            <div class="ocr-form-group">
+              <label for="ocrInputExpected">應標效期類別 (系統帶入/可自訂)</label>
+              <input type="text" id="ocrInputExpected" placeholder="例：項目2">
+            </div>
+            <div class="ocr-form-group">
+              <label for="ocrInputActual">實標效期類別</label>
+              <input type="text" id="ocrInputActual" placeholder="例：項目2">
+            </div>
+            
+            <button class="btn btn-success" id="btnSubmitOcrAudit" style="width: 100%; justify-content: center; margin-top: 0.5rem;" disabled>
+              <i data-lucide="plus-circle"></i> 新增至合規稽核清單
+            </button>
+          </div>
+          
+          <div style="margin-top: 1rem; border-top: 1px solid var(--border-light); padding-top: 0.75rem;">
+            <p style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">ℹ️ 影像原始辨識文字：</p>
+            <div class="ocr-raw-text-box" id="ocrRawTextBox">等待影像載入與解析...</div>
+          </div>
         </div>
       </div>
     </section>
@@ -198,9 +289,10 @@
 
   </div>
 
-  <!-- Lucide Icons & Chart.js CDNs -->
+  <!-- Lucide Icons, Chart.js & Tesseract.js CDNs -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   
   <!-- Dashboard Main Logic -->
   <script src="app.js"></script>

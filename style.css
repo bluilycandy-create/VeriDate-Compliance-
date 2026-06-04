@@ -656,6 +656,161 @@ tr:hover td {
   margin-bottom: 1rem;
 }
 
+/* ==========================================
+   OCR Image Recognition Styles
+   ========================================== */
+
+.ocr-scanner-container {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.camera-box {
+  position: relative;
+  width: 100%;
+  height: 320px;
+  background-color: #2c2a29;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#videoFeed {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: none;
+}
+
+.camera-placeholder-text {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.camera-controls-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.camera-controls-row .btn {
+  flex: 1;
+  min-width: 100px;
+  justify-content: center;
+}
+
+/* Scanning Animation Line */
+.scan-laser-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: var(--danger);
+  box-shadow: 0 0 10px var(--danger);
+  z-index: 10;
+  animation: laserScan 2.5s linear infinite;
+}
+
+@keyframes laserScan {
+  0% { top: 0%; }
+  50% { top: 100%; }
+  100% { top: 0%; }
+}
+
+/* Progress bar styles */
+.ocr-progress-container {
+  margin-top: 1rem;
+  background: var(--bg-panel);
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+}
+
+.ocr-progress-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.ocr-progress-bar-bg {
+  width: 100%;
+  height: 8px;
+  background: rgba(140, 123, 108, 0.15);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.ocr-progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--primary);
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+
+/* OCR Form styles */
+.ocr-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.ocr-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ocr-form-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.ocr-form-group input {
+  background: white;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  transition: var(--transition);
+}
+
+.ocr-form-group input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 8px rgba(140, 123, 108, 0.08);
+}
+
+/* Raw OCR Output text box */
+.ocr-raw-text-box {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
 /* Responsive Utilities */
 /* Responsive Utilities */
 @media (max-width: 1024px) {
@@ -667,6 +822,15 @@ tr:hover td {
 @media (max-width: 768px) {
   .app-container {
     padding: 1.5rem 1rem;
+  }
+
+  .ocr-scanner-container {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .camera-box {
+    height: 240px;
   }
 
   header {

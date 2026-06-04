@@ -153,6 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initExport();
   initViewToggle();
   initAnalyticsToggle();
+  initOcrModule();
   
   // Try to load default data initially
   loadCSVString(DEFAULT_CSV_DATA);
@@ -797,5 +798,282 @@ function initExport() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  });
+}
+
+// ==========================================================================
+// 📷 影像拍照辨識 (OCR) 邏輯模組
+// ==========================================================================
+
+function initOcrModule() {
+  const inputModeCsv = document.getElementById('inputModeCsv');
+  const inputModeOcr = document.getElementById('inputModeOcr');
+  const csvUploadSection = document.getElementById('csvUploadSection');
+  const ocrUploadSection = document.getElementById('ocrUploadSection');
+
+  if (!inputModeCsv || !inputModeOcr || !csvUploadSection || !ocrUploadSection) return;
+
+  // Toggle Input Modes
+  inputModeCsv.addEventListener('click', () => {
+    inputModeCsv.classList.add('active');
+    inputModeOcr.classList.remove('active');
+    csvUploadSection.style.display = 'block';
+    ocrUploadSection.style.display = 'none';
+    stopCamera();
+  });
+
+  inputModeOcr.addEventListener('click', () => {
+    inputModeOcr.classList.add('active');
+    inputModeCsv.classList.remove('active');
+    ocrUploadSection.style.display = 'block';
+    csvUploadSection.style.display = 'none';
+  });
+
+  // Camera Management
+  let stream = null;
+  const videoFeed = document.getElementById('videoFeed');
+  const btnStartCamera = document.getElementById('btnStartCamera');
+  const btnCapturePhoto = document.getElementById('btnCapturePhoto');
+  const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+  const scanLaserLine = document.getElementById('scanLaserLine');
+
+  btnStartCamera.addEventListener('click', async () => {
+    if (stream) {
+      stopCamera();
+      return;
+    }
+
+    try {
+      // Access camera (facingMode environment prioritizes back camera on mobile)
+      stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
+      });
+      videoFeed.srcObject = stream;
+      videoFeed.style.display = 'block';
+      cameraPlaceholder.style.display = 'none';
+      scanLaserLine.style.display = 'block';
+      btnCapturePhoto.disabled = false;
+      btnStartCamera.innerHTML = '<i data-lucide="video-off"></i> 關閉相機';
+      lucide.createIcons();
+    } catch (err) {
+      console.error(err);
+      alert('無法存取相機，請確認瀏覽器相機授權已開啟。');
+    }
+  });
+
+  function stopCamera() {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
+    }
+    videoFeed.srcObject = null;
+    videoFeed.style.display = 'none';
+    cameraPlaceholder.style.display = 'flex';
+    scanLaserLine.style.display = 'none';
+    btnCapturePhoto.disabled = true;
+    btnStartCamera.innerHTML = '<i data-lucide="video"></i> 啟動相機';
+    lucide.createIcons();
+  }
+
+  // Capture Photo
+  const captureCanvas = document.getElementById('captureCanvas');
+  btnCapturePhoto.addEventListener('click', () => {
+    if (!stream) return;
+    
+    const context = captureCanvas.getContext('2d');
+    captureCanvas.width = videoFeed.videoWidth;
+    captureCanvas.height = videoFeed.videoHeight;
+    
+    // Draw current frame to canvas
+    context.drawImage(videoFeed, 0, 0, videoFeed.videoWidth, videoFeed.videoHeight);
+    const dataUrl = captureCanvas.toDataURL('image/png');
+    
+    // Auto stop camera streaming to save battery & cpu
+    stopCamera();
+    
+    // Start OCR processing
+    runOcr(dataUrl);
+  });
+
+  // Local File Upload for OCR
+  const ocrFileInput = document.getElementById('ocrFileInput');
+  const btnSelectOcrFile = document.getElementById('btnSelectOcrFile');
+
+  btnSelectOcrFile.addEventListener('click', () => {
+    ocrFileInput.click();
+  });
+
+  ocrFileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        runOcr(event.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  // Tesseract OCR Core Process
+  const ocrProgressBox = document.getElementById('ocrProgressBox');
+  const ocrProgressStatus = document.getElementById('ocrProgressStatus');
+  const ocrProgressBarFill = document.getElementById('ocrProgressBarFill');
+  const ocrProgressPercent = document.getElementById('ocrProgressPercent');
+  const ocrRawTextBox = document.getElementById('ocrRawTextBox');
+
+  async function runOcr(imageSrc) {
+    ocrProgressBox.style.display = 'block';
+    ocrRawTextBox.textContent = '影像載入完成，正在啟動辨識...';
+    ocrProgressStatus.textContent = '初始化 OCR 辨識模組...';
+    ocrProgressBarFill.style.width = '0%';
+    ocrProgressPercent.textContent = '0%';
+
+    try {
+      // Use Tesseract CDN instance loaded at index.html
+      const worker = await Tesseract.createWorker('chi_tra+eng', 1, {
+        logger: m => {
+          if (m.status === 'recognizing text') {
+            ocrProgressStatus.textContent = '正在掃描並分析標籤字元...';
+            const progress = Math.round(m.progress * 100);
+            ocrProgressBarFill.style.width = `${progress}%`;
+            ocrProgressPercent.textContent = `${progress}%`;
+          }
+        }
+      });
+
+      const ret = await worker.recognize(imageSrc);
+      const text = ret.data.text;
+      await worker.terminate();
+
+      ocrProgressStatus.textContent = '影像解析完成！';
+      ocrProgressBarFill.style.width = '100%';
+      ocrProgressPercent.textContent = '100%';
+      ocrRawTextBox.textContent = text || '(無辨識出任何可見文字)';
+
+      // Autoparse and fill out fields
+      parseAndPopulateOcrFields(text);
+
+    } catch (err) {
+      console.error(err);
+      ocrProgressStatus.textContent = '辨識引擎出錯。';
+      ocrRawTextBox.textContent = `錯誤原因: ${err.message}`;
+    }
+  }
+
+  // Regular Expression parsing for key data
+  function parseAndPopulateOcrFields(text) {
+    const ocrInputItem = document.getElementById('ocrInputItem');
+    const ocrInputBatch = document.getElementById('ocrInputBatch');
+    const ocrInputMfgDate = document.getElementById('ocrInputMfgDate');
+    const ocrInputExpected = document.getElementById('ocrInputExpected');
+    const ocrInputActual = document.getElementById('ocrInputActual');
+    const btnSubmitOcrAudit = document.getElementById('btnSubmitOcrAudit');
+
+    // 1. Detect Manufacture Date (Matches YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD, YYYYMMDD)
+    const datePattern = /(\d{4})[\-\/\.](\d{1,2})[\-\/\.](\d{1,2})|(\d{8})/;
+    const dateMatch = text.match(datePattern);
+    let detectedMfgDate = '';
+    
+    if (dateMatch) {
+      if (dateMatch[1]) {
+        const m = dateMatch[2].padStart(2, '0');
+        const d = dateMatch[3].padStart(2, '0');
+        detectedMfgDate = `${dateMatch[1]}-${m}-${d}`;
+      } else if (dateMatch[4]) {
+        const year = dateMatch[4].substring(0, 4);
+        const month = dateMatch[4].substring(4, 6);
+        const day = dateMatch[4].substring(6, 8);
+        detectedMfgDate = `${year}-${month}-${day}`;
+      }
+    }
+    ocrInputMfgDate.value = detectedMfgDate;
+
+    // 2. Detect Batch number (e.g. b-1002, BATCH1099, B1024)
+    const batchPattern = /(b\-\d+|batch\d+|b\d+)/i;
+    const batchMatch = text.match(batchPattern);
+    ocrInputBatch.value = batchMatch ? batchMatch[0].toUpperCase() : '';
+
+    // 3. Detect Actual Expiration Labeled (matches A, B, C or 項目1, 項目2, 項目3)
+    const categoryPattern = /(項目[1-3]|[A-C])/i;
+    const categoryMatch = text.match(categoryPattern);
+    ocrInputActual.value = categoryMatch ? categoryMatch[0] : '';
+
+    // 4. Match Product Name by searching keyword list
+    const productsList = ['湯包', '即食雞胸', '堅果包', '能量棒', '鮮奶茶', '布丁', '原味吐司', '氣泡飲', '巧克力餅乾', '蛋捲', '果醬', '沙拉醬', '杯裝優格', '冷凍水餃', '泡芙'];
+    let detectedItem = '';
+    for (const prod of productsList) {
+      if (text.includes(prod)) {
+        detectedItem = prod;
+        break;
+      }
+    }
+    ocrInputItem.value = detectedItem;
+
+    // 5. Auto calculate expected category based on historical logs
+    let guessedExpected = '';
+    if (detectedItem) {
+      const match = processedDataList.find(d => d.item === detectedItem);
+      if (match) {
+        guessedExpected = match.expected;
+      }
+    }
+    ocrInputExpected.value = guessedExpected || ocrInputActual.value || '項目1';
+
+    // Enable Submission form button
+    btnSubmitOcrAudit.disabled = false;
+  }
+
+  // Handle manual review submission
+  const btnSubmitOcrAudit = document.getElementById('btnSubmitOcrAudit');
+  btnSubmitOcrAudit.addEventListener('click', () => {
+    const ocrInputItem = document.getElementById('ocrInputItem').value.trim();
+    const ocrInputBatch = document.getElementById('ocrInputBatch').value.trim();
+    const ocrInputMfgDate = document.getElementById('ocrInputMfgDate').value.trim();
+    const ocrInputExpected = document.getElementById('ocrInputExpected').value.trim();
+    const ocrInputActual = document.getElementById('ocrInputActual').value.trim();
+
+    if (!ocrInputItem || !ocrInputMfgDate || !ocrInputActual) {
+      alert('「產品品項」、「製造日期」、「實標效期」為必填欄位！');
+      return;
+    }
+
+    const record = {
+      id: processedDataList.length + 1,
+      batch: ocrInputBatch,
+      item: ocrInputItem,
+      mfgDateStr: ocrInputMfgDate,
+      expected: ocrInputExpected,
+      actual: ocrInputActual
+    };
+
+    // Calculate audit & check duplicates
+    const seenRecords = new Set(processedDataList.map(d => `${d.batch}|${d.item}|${d.mfgDateStr}|${d.expected}|${d.actual}`));
+    const auditResult = performAudit(record, seenRecords);
+
+    const newRecord = {
+      ...record,
+      ...auditResult
+    };
+
+    // Add to the top of list for instant feedback
+    processedDataList.unshift(newRecord);
+
+    // Reset Form Fields
+    document.getElementById('ocrInputItem').value = '';
+    document.getElementById('ocrInputBatch').value = '';
+    document.getElementById('ocrInputMfgDate').value = '';
+    document.getElementById('ocrInputExpected').value = '';
+    document.getElementById('ocrInputActual').value = '';
+    btnSubmitOcrAudit.disabled = true;
+    ocrRawTextBox.textContent = '稽核成功並已新增！等待下一張影像...';
+    ocrProgressBox.style.display = 'none';
+
+    // Refresh dashboard UI
+    currentPage = 1;
+    updateMetrics();
+    renderCharts();
+    filterAndRenderData();
+
+    alert('合規稽核結果已新增至資料列表中！');
   });
 }
