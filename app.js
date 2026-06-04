@@ -152,10 +152,32 @@ document.addEventListener('DOMContentLoaded', () => {
   initSearch();
   initExport();
   initViewToggle();
+  initAnalyticsToggle();
   
   // Try to load default data initially
   loadCSVString(DEFAULT_CSV_DATA);
 });
+
+// Mobile Collapsible Analytics Panel
+function initAnalyticsToggle() {
+  const toggleBtn = document.getElementById('toggleAnalyticsBtn');
+  const collapsePanel = document.getElementById('analyticsCollapsePanel');
+  
+  if (!toggleBtn || !collapsePanel) return;
+
+  toggleBtn.addEventListener('click', () => {
+    const isHidden = window.getComputedStyle(collapsePanel).display === 'none';
+    if (isHidden) {
+      collapsePanel.style.setProperty('display', 'block', 'important');
+      toggleBtn.classList.add('active');
+      if (statusChart) statusChart.resize();
+      if (errorTypeChart) errorTypeChart.resize();
+    } else {
+      collapsePanel.style.setProperty('display', 'none', 'important');
+      toggleBtn.classList.remove('active');
+    }
+  });
+}
 
 // View Toggle (Table vs Cards)
 function initViewToggle() {

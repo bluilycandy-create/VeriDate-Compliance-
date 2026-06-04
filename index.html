@@ -55,65 +55,72 @@
       </div>
     </section>
 
-    <!-- Metrics Cards Grid -->
-    <section class="metrics-grid" id="metricsGridSection">
-      
-      <div class="paper-panel metric-card total" id="metricCardTotal">
-        <div class="metric-header">
-          <span>總檢查筆數</span>
-          <i data-lucide="list-ordered" style="width: 16px; height: 16px; color: var(--primary);"></i>
-        </div>
-        <div class="metric-value" id="metricTotal">0</div>
-      </div>
+    <!-- Collapsible Analytics Panel for Mobile -->
+    <button class="btn btn-secondary" id="toggleAnalyticsBtn" style="display: none; width: 100%; margin-bottom: 1.5rem; justify-content: center; font-family: inherit;">
+      <i data-lucide="bar-chart-2" style="width: 16px; height: 16px;"></i> 顯示/隱藏 數據統計分析
+    </button>
 
-      <div class="paper-panel metric-card compliance-rate" id="metricCardRate">
-        <div class="metric-header">
-          <span>標示合規率</span>
-          <i data-lucide="percent" style="width: 16px; height: 16px; color: var(--success);"></i>
+    <div id="analyticsCollapsePanel">
+      <!-- Metrics Cards Grid -->
+      <section class="metrics-grid" id="metricsGridSection">
+        
+        <div class="paper-panel metric-card total" id="metricCardTotal">
+          <div class="metric-header">
+            <span>總檢查筆數</span>
+            <i data-lucide="list-ordered" style="width: 16px; height: 16px; color: var(--primary);"></i>
+          </div>
+          <div class="metric-value" id="metricTotal">0</div>
         </div>
-        <div class="metric-value" id="metricCompliance">0%</div>
-      </div>
 
-      <div class="paper-panel metric-card compliant" id="metricCardCompliant">
-        <div class="metric-header">
-          <span>合規筆數</span>
-          <i data-lucide="check-circle-2" style="width: 16px; height: 16px; color: var(--success);"></i>
+        <div class="paper-panel metric-card compliance-rate" id="metricCardRate">
+          <div class="metric-header">
+            <span>標示合規率</span>
+            <i data-lucide="percent" style="width: 16px; height: 16px; color: var(--success);"></i>
+          </div>
+          <div class="metric-value" id="metricCompliance">0%</div>
         </div>
-        <div class="metric-value" id="metricCompliant">0</div>
-      </div>
 
-      <div class="paper-panel metric-card violations" id="metricCardViolations">
-        <div class="metric-header">
-          <span>標示異常筆數</span>
-          <i data-lucide="alert-triangle" style="width: 16px; height: 16px; color: var(--danger);"></i>
+        <div class="paper-panel metric-card compliant" id="metricCardCompliant">
+          <div class="metric-header">
+            <span>合規筆數</span>
+            <i data-lucide="check-circle-2" style="width: 16px; height: 16px; color: var(--success);"></i>
+          </div>
+          <div class="metric-value" id="metricCompliant">0</div>
         </div>
-        <div class="metric-value" id="metricViolations">0</div>
-      </div>
 
-    </section>
+        <div class="paper-panel metric-card violations" id="metricCardViolations">
+          <div class="metric-header">
+            <span>標示異常筆數</span>
+            <i data-lucide="alert-triangle" style="width: 16px; height: 16px; color: var(--danger);"></i>
+          </div>
+          <div class="metric-value" id="metricViolations">0</div>
+        </div>
 
-    <!-- Charts Section -->
-    <section class="charts-section" id="chartsSectionContainer">
-      
-      <div class="paper-panel chart-container" id="complianceRatioChartPanel">
-        <div class="chart-header">
-          <h3>合規分佈比例</h3>
-        </div>
-        <div class="chart-wrapper">
-          <canvas id="statusChart"></canvas>
-        </div>
-      </div>
+      </section>
 
-      <div class="paper-panel chart-container" id="errorTypesChartPanel">
-        <div class="chart-header">
-          <h3>異常原因類型統計</h3>
+      <!-- Charts Section -->
+      <section class="charts-section" id="chartsSectionContainer">
+        
+        <div class="paper-panel chart-container" id="complianceRatioChartPanel">
+          <div class="chart-header">
+            <h3>合規分佈比例</h3>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="statusChart"></canvas>
+          </div>
         </div>
-        <div class="chart-wrapper">
-          <canvas id="errorTypeChart"></canvas>
-        </div>
-      </div>
 
-    </section>
+        <div class="paper-panel chart-container" id="errorTypesChartPanel">
+          <div class="chart-header">
+            <h3>異常原因類型統計</h3>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="errorTypeChart"></canvas>
+          </div>
+        </div>
+
+      </section>
+    </div>
 
     <!-- Data Records Panel -->
     <section class="data-section" id="dataRecordsPanel">

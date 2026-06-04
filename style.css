@@ -168,6 +168,14 @@ header {
   display: none;
 }
 
+#toggleAnalyticsBtn {
+  display: none !important;
+}
+
+#analyticsCollapsePanel {
+  display: block !important;
+}
+
 .upload-icon {
   font-size: 2.5rem;
   color: var(--primary);
@@ -702,8 +710,16 @@ tr:hover td {
 
   #mobileUploadBtn {
     display: inline-flex;
-    margin: 0 auto;
+    margin: 0 auto 1.25rem auto;
     box-shadow: 0 4px 12px var(--primary-glow);
+  }
+
+  #toggleAnalyticsBtn {
+    display: inline-flex !important;
+  }
+
+  #analyticsCollapsePanel {
+    display: none;
   }
 
   .metrics-grid {
