@@ -26,6 +26,9 @@
         </div>
       </div>
       <div class="header-actions">
+        <button class="btn btn-secondary" id="openManualBtn">
+          <i data-lucide="book-open" style="width: 16px; height: 16px;"></i> 新手教學手冊
+        </button>
         <button class="btn btn-secondary" id="loadDefaultBtn">
           <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i> 載入預設資料
         </button>
@@ -126,11 +129,11 @@
             </div>
             <div class="ocr-form-group">
               <label for="ocrInputExpected">應標效期類別 (系統帶入/可自訂)</label>
-              <input type="text" id="ocrInputExpected" placeholder="例：項目2">
+              <input type="text" id="ocrInputExpected" placeholder="例：項目2 (B)">
             </div>
             <div class="ocr-form-group">
               <label for="ocrInputActual">實標效期類別</label>
-              <input type="text" id="ocrInputActual" placeholder="例：項目2">
+              <input type="text" id="ocrInputActual" placeholder="例：項目2 (B)">
             </div>
             
             <button class="btn btn-success" id="btnSubmitOcrAudit" style="width: 100%; justify-content: center; margin-top: 0.5rem;" disabled>
@@ -287,6 +290,74 @@
       </div>
     </section>
 
+  </div>
+
+  <!-- Interactive Floating Assistant Bot -->
+  <div class="assistant-fab" id="assistantFab" title="使用教學機器人">
+    <i data-lucide="message-square" style="width: 24px; height: 24px;"></i>
+  </div>
+
+  <div class="assistant-window" id="assistantWindow" style="display: none;">
+    <div class="assistant-header">
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <i data-lucide="bot" style="width: 20px; height: 20px; color: var(--primary);"></i>
+        <strong style="font-family: 'Noto Serif TC', serif; font-size: 0.95rem;">使用教學機器人</strong>
+      </div>
+      <button id="closeAssistantBtn" class="assistant-close-btn">&times;</button>
+    </div>
+    <div class="assistant-body" id="assistantChatBody">
+      <!-- Chat bubbles populated dynamically in JS -->
+    </div>
+  </div>
+
+  <!-- Detailed User Tutorial Manual Modal -->
+  <div class="manual-modal" id="manualModal" style="display: none;">
+    <div class="manual-modal-content paper-panel">
+      <div class="manual-modal-header">
+        <h2 class="serif-font" style="font-size: 1.4rem; display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+          <i data-lucide="book-open" style="width: 24px; height: 24px; color: var(--primary);"></i> VeriDate Compliance 新手教學手冊
+        </h2>
+        <button id="closeManualBtn" class="manual-close-btn">&times;</button>
+      </div>
+      <div class="manual-modal-body">
+        <section class="manual-section">
+          <h3>📌 系統簡介</h3>
+          <p>VeriDate Compliance 是一款食品效期標示合規性分析工具。我們協助品保人員快速稽核「製造日期」、「應標效期」與「實標效期」是否符合合規規範，支援 CSV 批次上傳與 AI 影像標籤辨識雙功能。</p>
+        </section>
+        
+        <section class="manual-section">
+          <h3>📂 CSV 批次稽核使用步驟</h3>
+          <ol>
+            <li>準備您的 CSV 檔案，首行為欄位標題，欄位順序規格如下：
+              <br><code>批號, 品項, 製造日期, 應標效期, 實標效期</code>
+            </li>
+            <li>將 CSV 檔案拖曳至首頁的「CSV 批次匯入區」，或點選上傳按鈕。</li>
+            <li>系統會自動解析多種常見製造日期格式（如 <code>YYYY-MM-DD</code>、<code>YYYYMMDD</code>、<code>D MMM YYYY</code> 等）。</li>
+            <li>匯入後，系統將比對應標與實標效期並即時產出統計面板與視覺化圓餅/長條分析圖表。</li>
+          </ol>
+        </section>
+
+        <section class="manual-section">
+          <h3>📷 標籤影像辨識 (OCR) 步驟</h3>
+          <ol>
+            <li>點擊首頁切換至「標籤影像辨識 (OCR)」模式。</li>
+            <li>點擊「啟動相機」使用裝置相機拍攝，或點選「上傳照片」選擇標籤圖片。</li>
+            <li>系統將以 AI 解析標籤文字，提取批號、製造日期與實標效期。</li>
+            <li>確認辨識無誤後，點選「新增至合規稽核清單」，即可併入下方數據列表與統計中。</li>
+          </ol>
+        </section>
+
+        <section class="manual-section">
+          <h3>⚖️ 合規稽核判定規則</h3>
+          <ul>
+            <li><strong>合規</strong> ✅：實標效期與應標效期完全符合，且欄位完整無缺。</li>
+            <li><strong>效期不符</strong> ❌：實標與規定應標的效期類別（項目/字母）不一致。</li>
+            <li><strong>欄位缺失/日期錯誤</strong> ⚠️：缺少必填欄位，或製造日期格式無法解析。</li>
+            <li><strong>重複資料</strong> ⚠️：與先前記錄完全重複的上報項目。</li>
+          </ul>
+        </section>
+      </div>
+    </div>
   </div>
 
   <!-- Lucide Icons, Chart.js & Tesseract.js CDNs -->

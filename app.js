@@ -154,6 +154,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initViewToggle();
   initAnalyticsToggle();
   initOcrModule();
+  initAssistantBot();
+  initCursorFollower();
+  initManualModal();
   
   // Try to load default data initially
   loadCSVString(DEFAULT_CSV_DATA);
@@ -303,6 +306,26 @@ function handleFile(file) {
   reader.readAsText(file, 'UTF-8');
 }
 
+// Normalize expected/actual expiration format (e.g. A/B/C -> 項目1/項目2/項目3)
+function normalizeExpirationFormat(val) {
+  if (!val) return '';
+  const cleanVal = val.toString().trim().toUpperCase();
+  if (cleanVal === 'A' || cleanVal === '項目1') return '項目1';
+  if (cleanVal === 'B' || cleanVal === '項目2') return '項目2';
+  if (cleanVal === 'C' || cleanVal === '項目3') return '項目3';
+  return val;
+}
+
+// Format expiration for unified display (e.g. 項目1 -> 項目1 (A))
+function formatExpirationForDisplay(val) {
+  if (!val) return 'N/A';
+  const cleanVal = val.toString().trim().toUpperCase();
+  if (cleanVal === '項目1' || cleanVal === 'A') return '項目1 (A)';
+  if (cleanVal === '項目2' || cleanVal === 'B') return '項目2 (B)';
+  if (cleanVal === '項目3' || cleanVal === 'C') return '項目3 (C)';
+  return val;
+}
+
 // CSV Loader & Analyzer
 function loadCSVString(csvText) {
   const lines = csvText.split(/\r?\n/);
@@ -326,8 +349,8 @@ function loadCSVString(csvText) {
       batch: values[0]?.trim() || '',
       item: values[1]?.trim() || '',
       mfgDateStr: values[2]?.trim() || '',
-      expected: values[3]?.trim() || '',
-      actual: values[4]?.trim() || ''
+      expected: normalizeExpirationFormat(values[3]),
+      actual: normalizeExpirationFormat(values[4])
     };
 
     rawDataList.push(record);
@@ -421,7 +444,7 @@ function performAudit(record, seenRecords) {
     statusClass = 'danger';
     statusText = '效期不符';
     category = 'mismatch';
-    reason = `應標 ${record.expected}，實標 ${record.actual}`;
+    reason = `應標 ${formatExpirationForDisplay(record.expected)}，實標 ${formatExpirationForDisplay(record.actual)}`;
   }
 
   return {
@@ -649,10 +672,10 @@ function renderListViewTable(items) {
         <div style="font-size: 0.85rem; font-weight:500;">${item.mfgDateFormatted}</div>
         ${item.mfgDateStr && item.mfgDateStr !== item.mfgDateFormatted ? `<div style="font-size: 0.7rem; color: var(--text-muted);">原標: ${item.mfgDateStr}</div>` : ''}
       </td>
-      <td><span class="badge badge-secondary">${item.expected || 'N/A'}</span></td>
+      <td><span class="badge badge-secondary">${formatExpirationForDisplay(item.expected)}</span></td>
       <td>
         <span class="badge ${item.isCompliant ? 'badge-success' : (item.statusClass === 'danger' ? 'badge-danger' : 'badge-warning')}">
-          ${item.actual || 'N/A'}
+          ${formatExpirationForDisplay(item.actual)}
         </span>
       </td>
       <td>
@@ -700,18 +723,21 @@ function renderCardsViewGrid(items) {
         <div class="card-item-name">${item.item || '<無品項>'}</div>
         <div class="card-batch">${item.batch || '<無批號>'}</div>
         
-        <div class="card-info-row">
-          <span class="card-info-label">製造日期</span>
-          <span style="font-weight:500;">${item.mfgDateFormatted}</span>
+        <div class="card-info-row" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+          <div style="display: flex; justify-content: space-between; width: 100%;">
+            <span class="card-info-label">製造日期</span>
+            <span style="font-weight:500;">${item.mfgDateFormatted}</span>
+          </div>
+          ${item.mfgDateStr && item.mfgDateStr !== item.mfgDateFormatted ? `<div style="font-size: 0.7rem; color: var(--text-muted); align-self: flex-end;">原標: ${item.mfgDateStr}</div>` : ''}
         </div>
         <div class="card-info-row">
           <span class="card-info-label">應標效期</span>
-          <span class="badge badge-secondary" style="padding: 0.1rem 0.4rem; font-size: 0.7rem;">${item.expected || 'N/A'}</span>
+          <span class="badge badge-secondary" style="padding: 0.1rem 0.4rem; font-size: 0.7rem;">${formatExpirationForDisplay(item.expected)}</span>
         </div>
         <div class="card-info-row">
           <span class="card-info-label">實標效期</span>
           <span class="badge ${item.isCompliant ? 'badge-success' : (item.statusClass === 'danger' ? 'badge-danger' : 'badge-warning')}" style="padding: 0.1rem 0.4rem; font-size: 0.7rem;">
-            ${item.actual || 'N/A'}
+            ${formatExpirationForDisplay(item.actual)}
           </span>
         </div>
         
@@ -782,8 +808,8 @@ function initExport() {
         `"${item.item}"`,
         `"${item.mfgDateStr}"`,
         `"${item.mfgDateFormatted}"`,
-        `"${item.expected}"`,
-        `"${item.actual}"`,
+        `"${formatExpirationForDisplay(item.expected)}"`,
+        `"${formatExpirationForDisplay(item.actual)}"`,
         `"${item.statusText}"`,
         `"${item.reason || ''}"`
       ];
@@ -996,7 +1022,7 @@ function initOcrModule() {
     // 3. Detect Actual Expiration Labeled (matches A, B, C or 項目1, 項目2, 項目3)
     const categoryPattern = /(項目[1-3]|[A-C])/i;
     const categoryMatch = text.match(categoryPattern);
-    ocrInputActual.value = categoryMatch ? categoryMatch[0] : '';
+    ocrInputActual.value = categoryMatch ? normalizeExpirationFormat(categoryMatch[0]) : '';
 
     // 4. Match Product Name by searching keyword list
     const productsList = ['湯包', '即食雞胸', '堅果包', '能量棒', '鮮奶茶', '布丁', '原味吐司', '氣泡飲', '巧克力餅乾', '蛋捲', '果醬', '沙拉醬', '杯裝優格', '冷凍水餃', '泡芙'];
@@ -1017,7 +1043,8 @@ function initOcrModule() {
         guessedExpected = match.expected;
       }
     }
-    ocrInputExpected.value = guessedExpected || ocrInputActual.value || '項目1';
+    const finalExpected = guessedExpected || ocrInputActual.value || '項目1';
+    ocrInputExpected.value = normalizeExpirationFormat(finalExpected);
 
     // Enable Submission form button
     btnSubmitOcrAudit.disabled = false;
@@ -1042,8 +1069,8 @@ function initOcrModule() {
       batch: ocrInputBatch,
       item: ocrInputItem,
       mfgDateStr: ocrInputMfgDate,
-      expected: ocrInputExpected,
-      actual: ocrInputActual
+      expected: normalizeExpirationFormat(ocrInputExpected),
+      actual: normalizeExpirationFormat(ocrInputActual)
     };
 
     // Calculate audit & check duplicates
@@ -1075,5 +1102,346 @@ function initOcrModule() {
     filterAndRenderData();
 
     alert('合規稽核結果已新增至資料列表中！');
+  });
+}
+
+// ==========================================================================
+// 🤖 線上教學機器人 (Assistant Bot) 邏輯模組
+// ==========================================================================
+
+function initAssistantBot() {
+  const assistantFab = document.getElementById('assistantFab');
+  const assistantWindow = document.getElementById('assistantWindow');
+  const closeAssistantBtn = document.getElementById('closeAssistantBtn');
+  const chatBody = document.getElementById('assistantChatBody');
+  
+  if (!assistantFab || !assistantWindow || !closeAssistantBtn || !chatBody) return;
+  
+  let tourStep = 0;
+  let activeHighlightedElement = null;
+
+  // Toggle Visibility
+  assistantFab.addEventListener('click', () => {
+    // Hide and remove tooltip bubble on first click
+    const tooltip = document.getElementById('assistantTooltip');
+    if (tooltip) {
+      tooltip.style.opacity = '0';
+      setTimeout(() => tooltip.remove(), 300);
+    }
+    
+    if (assistantWindow.style.display === 'none' || !assistantWindow.style.display) {
+      assistantWindow.style.display = 'flex';
+      if (chatBody.children.length === 0) {
+        showGreeting();
+      }
+    } else {
+      closeAssistant();
+    }
+  });
+
+  closeAssistantBtn.addEventListener('click', () => {
+    closeAssistant();
+  });
+
+  function closeAssistant() {
+    assistantWindow.style.display = 'none';
+    cleanupHighlight();
+  }
+
+  function cleanupHighlight() {
+    if (activeHighlightedElement) {
+      activeHighlightedElement.classList.remove('tour-highlight');
+      activeHighlightedElement = null;
+    }
+  }
+
+  function highlightElement(selector) {
+    cleanupHighlight();
+    const el = document.querySelector(selector);
+    if (el) {
+      el.classList.add('tour-highlight');
+      activeHighlightedElement = el;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  function addBotMessage(text, chips = []) {
+    const chatRow = document.createElement('div');
+    chatRow.className = 'chat-row bot-row';
+    
+    const bubble = document.createElement('div');
+    bubble.className = 'bot-message';
+    bubble.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+    chatRow.appendChild(bubble);
+    
+    if (chips && chips.length > 0) {
+      const chipsContainer = document.createElement('div');
+      chipsContainer.className = 'user-chips-container';
+      
+      chips.forEach(chipData => {
+        const chip = document.createElement('button');
+        chip.className = 'user-chip';
+        chip.innerHTML = chipData.text;
+        chip.addEventListener('click', () => {
+          chipsContainer.remove();
+          addUserMessage(chipData.text);
+          setTimeout(() => {
+            chipData.action();
+          }, 400);
+        });
+        chipsContainer.appendChild(chip);
+      });
+      chatRow.appendChild(chipsContainer);
+    }
+    
+    chatBody.appendChild(chatRow);
+    chatBody.scrollTop = chatBody.scrollHeight;
+  }
+
+  function addUserMessage(text) {
+    const chatRow = document.createElement('div');
+    chatRow.className = 'chat-row user-row';
+    
+    const bubble = document.createElement('div');
+    bubble.className = 'user-message';
+    bubble.textContent = text;
+    
+    chatRow.appendChild(bubble);
+    chatBody.appendChild(chatRow);
+    chatBody.scrollTop = chatBody.scrollHeight;
+  }
+
+  function showGreeting() {
+    chatBody.innerHTML = '';
+    cleanupHighlight();
+    addBotMessage(
+      "您好！我是您的 **使用教學機器人** 🤖\n\n我可以協助您快速上手此食品效期合規性稽核系統。請選擇您想了解的功能：",
+      [
+        { text: "📊 快速功能導覽", action: startTour },
+        { text: "📖 新手教學手冊", action: openManualFromBot },
+        { text: "📂 測試 CSV 批次稽核", action: explainCsvAudit },
+        { text: "📷 體驗影像 OCR 辨識", action: explainOcrAudit },
+        { text: "⚙️ 系統合規規則", action: explainRules }
+      ]
+    );
+  }
+
+  function openManualFromBot() {
+    const modal = document.getElementById('manualModal');
+    if (modal) {
+      modal.style.display = 'flex';
+    }
+    addBotMessage("已為您打開 **新手教學手冊** 📖！\n\n您可以閱讀裡面的詳細指引。閱讀完畢後，隨時點選右上角的叉叉關閉它。", [
+      { text: "回到主選單 🏠", action: showGreeting }
+    ]);
+  }
+
+  function startTour() {
+    tourStep = 1;
+    runTourStep();
+  }
+
+  function runTourStep() {
+    if (tourStep === 1) {
+      document.getElementById('inputModeCsv').click();
+      highlightElement('#csvUploadSection');
+      addBotMessage(
+        "第一步：**CSV 批次匯入區** 📂\n\n您可以直接拖曳 CSV 稽核檔案到此區域，或點擊選擇檔案。我們系統會自動解析各種日期格式並進行分析。\n\n您也可以在上方點擊『載入預設資料』來快速體驗！",
+        [
+          { text: "下一步 (數據統計分析) ➡️", action: () => { tourStep = 2; runTourStep(); } },
+          { text: "❌ 結束導覽", action: endTour }
+        ]
+      );
+    } else if (tourStep === 2) {
+      const collapsePanel = document.getElementById('analyticsCollapsePanel');
+      if (window.getComputedStyle(collapsePanel).display === 'none') {
+        document.getElementById('toggleAnalyticsBtn').click();
+      }
+      highlightElement('#metricsGridSection');
+      addBotMessage(
+        "第二步：**數據統計面板** 📊\n\n當您載入資料後，這裡會即時顯示「總檢查筆數」、「標示合規率」以及「異常筆數」。讓您一眼看出標示的整體品質與風險！",
+        [
+          { text: "下一步 (圖表分析) ➡️", action: () => { tourStep = 3; runTourStep(); } },
+          { text: "⬅️ 上一步", action: () => { tourStep = 1; runTourStep(); } },
+          { text: "❌ 結束導覽", action: endTour }
+        ]
+      );
+    } else if (tourStep === 3) {
+      const collapsePanel = document.getElementById('analyticsCollapsePanel');
+      if (window.getComputedStyle(collapsePanel).display === 'none') {
+        document.getElementById('toggleAnalyticsBtn').click();
+      }
+      highlightElement('#chartsSectionContainer');
+      addBotMessage(
+        "第三步：**合規與異常原因圖表** 📈\n\n系統透過圓餅圖（合規分佈比例）和長條圖（異常類型統計），將錯誤分類（如：效期不符、欄位缺失、重複上報），協助您進行直觀的視覺化追蹤管理。",
+        [
+          { text: "下一步 (稽核明細) ➡️", action: () => { tourStep = 4; runTourStep(); } },
+          { text: "⬅️ 上一步", action: () => { tourStep = 2; runTourStep(); } },
+          { text: "❌ 結束導覽", action: endTour }
+        ]
+      );
+    } else if (tourStep === 4) {
+      highlightElement('#dataRecordsPanel');
+      addBotMessage(
+        "第四步：**合規稽核明細** 🔍\n\n您可以在此切換『列表檢視』與『圖卡檢視』（包含精美食品圖卡）。還能透過上方篩選按鈕（全部、合規、不合規等）以及關鍵字搜尋框，快速過濾與定位特定批號或品項！",
+        [
+          { text: "下一步 (影像辨識 OCR) ➡️", action: () => { tourStep = 5; runTourStep(); } },
+          { text: "⬅️ 上一步", action: () => { tourStep = 3; runTourStep(); } },
+          { text: "❌ 結束導覽", action: endTour }
+        ]
+      );
+    } else if (tourStep === 5) {
+      document.getElementById('inputModeOcr').click();
+      highlightElement('#ocrUploadSection');
+      addBotMessage(
+        "第五步：**標籤影像辨識 (OCR)** 📷\n\n這是我們最強大的功能！您可以點選『啟動相機』直接對著食品包裝的效期標籤進行拍照，或者點選『上傳照片』。系統會自動以 AI 提取批號、製造日期與實標效期，審查後即可快速新增到稽核清單！",
+        [
+          { text: "🎉 完成導覽！", action: () => { tourStep = 6; runTourStep(); } },
+          { text: "⬅️ 上一步", action: () => { tourStep = 4; runTourStep(); } }
+        ]
+      );
+    } else if (tourStep === 6) {
+      cleanupHighlight();
+      addBotMessage(
+        "太棒了！您已經了解了 VeriDate Compliance 的所有核心功能。現在您可以開始匯入您的資料或使用 OCR 來體驗了！\n\n如果有任何問題，隨時點擊右下角我的圖示來召喚我。",
+        [
+          { text: "回到主選單 🏠", action: showGreeting }
+        ]
+      );
+    }
+  }
+
+  function endTour() {
+    cleanupHighlight();
+    addBotMessage(
+      "導覽已結束。如果您還有任何想了解的，隨時可以點擊下方按鈕或關閉對話框開始體驗！",
+      [
+        { text: "回到主選單 🏠", action: showGreeting }
+      ]
+    );
+  }
+
+  function explainCsvAudit() {
+    addBotMessage(
+      "本系統支援自動分析多種日期格式的 CSV 檔案。您可以點擊上方『載入預設資料』，或點擊下方按鈕直接載入測試資料，看它如何自動稽核並生成精美的合規率圖表。",
+      [
+        {
+          text: "⚡ 載入測試 CSV 資料",
+          action: () => {
+            loadCSVString(DEFAULT_CSV_DATA);
+            document.getElementById('inputModeCsv').click();
+            highlightElement('#metricsGridSection');
+            addBotMessage("測試資料已成功載入！您可以查看上方的統計數據，或向下滾動查看稽核明細。", [
+              { text: "回到主選單 🏠", action: showGreeting }
+            ]);
+          }
+        },
+        { text: "回到主選單 🏠", action: showGreeting }
+      ]
+    );
+  }
+
+  function explainOcrAudit() {
+    addBotMessage(
+      "我們的 OCR 系統能夠自動辨識食品標籤中的製造日期與批號。我現在為您切換到影像辨識模式！",
+      [
+        {
+          text: "📷 開啟影像辨識模式",
+          action: () => {
+            document.getElementById('inputModeOcr').click();
+            highlightElement('#ocrUploadSection');
+            addBotMessage("已為您切換至標籤影像辨識 (OCR) 面板。您可以點擊『啟動相機』或『上傳照片』來體驗影像辨識！", [
+              { text: "回到主選單 🏠", action: showGreeting }
+            ]);
+          }
+        },
+        { text: "回到主選單 🏠", action: showGreeting }
+      ]
+    );
+  }
+
+  function explainRules() {
+    addBotMessage(
+      "VeriDate Compliance 的合規規則如下：\n\n" +
+      "1. **合規** ✅：實標效期與應標效期完全符合，且資料完整。\n" +
+      "2. **效期不符** ❌：實標效期類別與應標效期類別不一致。\n" +
+      "3. **欄位缺失/日期錯誤** ⚠️：缺少批號、品項、製造日期、實標效期，或製造日期格式無法解析。\n" +
+      "4. **重複資料** ⚠️：與先前輸入的批號、品項、日期完全相同。",
+      [
+        { text: "回到主選單 🏠", action: showGreeting }
+      ]
+    );
+  }
+}
+
+// ==========================================================================
+// 🖱️ 滑鼠跟隨引導氣泡 (Cursor Follower Tooltip) 邏輯模組
+// ==========================================================================
+
+function initCursorFollower() {
+  const follower = document.createElement('div');
+  follower.className = 'cursor-follower-tooltip';
+  follower.innerHTML = '💡 點我開始使用教學！';
+  document.body.appendChild(follower);
+  
+  let isRemoved = false;
+  
+  const moveHandler = (e) => {
+    if (isRemoved) return;
+    // Offset relative to cursor to prevent clicking interception
+    follower.style.left = (e.pageX + 16) + 'px';
+    follower.style.top = (e.pageY + 16) + 'px';
+  };
+  
+  window.addEventListener('mousemove', moveHandler);
+  
+  const removeFollower = () => {
+    if (isRemoved) return;
+    isRemoved = true;
+    follower.style.opacity = '0';
+    setTimeout(() => {
+      follower.remove();
+      window.removeEventListener('mousemove', moveHandler);
+    }, 300);
+  };
+  
+  // Dismiss upon clicking the chatbot button or anywhere on the page
+  const fab = document.getElementById('assistantFab');
+  if (fab) {
+    fab.addEventListener('click', removeFollower);
+  }
+  
+  document.addEventListener('click', removeFollower);
+  
+  // Timeout dismissal after 10 seconds of inactivity
+  setTimeout(removeFollower, 10000);
+}
+
+// ==========================================================================
+// 📖 新手教學手冊模組 (Manual Modal) 邏輯模組
+// ==========================================================================
+
+function initManualModal() {
+  const openManualBtn = document.getElementById('openManualBtn');
+  const closeManualBtn = document.getElementById('closeManualBtn');
+  const manualModal = document.getElementById('manualModal');
+  
+  if (!openManualBtn || !closeManualBtn || !manualModal) return;
+  
+  // Open Modal
+  openManualBtn.addEventListener('click', () => {
+    manualModal.style.display = 'flex';
+  });
+  
+  // Close Modal
+  closeManualBtn.addEventListener('click', () => {
+    manualModal.style.display = 'none';
+  });
+  
+  // Close Modal when clicking outside the content area
+  manualModal.addEventListener('click', (e) => {
+    if (e.target === manualModal) {
+      manualModal.style.display = 'none';
+    }
   });
 }
